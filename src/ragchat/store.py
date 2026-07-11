@@ -31,7 +31,7 @@ class VectorStore:
             return
         self._collection.upsert(
             ids=[self._chunk_id(c) for c in chunks],
-            embeddings=embeddings,
+            embeddings=embeddings,  # type: ignore[arg-type]  # chroma stub type is narrower than list[list[float]]
             documents=[c.text for c in chunks],
             metadatas=[
                 {"source": c.source, "chunk_index": c.chunk_index} for c in chunks
@@ -39,11 +39,20 @@ class VectorStore:
         )
 
     def query(self, embedding: list[float], top_k: int) -> list[Chunk]:
-        res = self._collection.query(query_embeddings=[embedding], n_results=top_k)
-        docs = res["documents"][0]
-        metas = res["metadatas"][0]
+        res = self._collection.query(
+            query_embeddings=[embedding],  # type: ignore[arg-type]  # chroma stub type is narrower
+            n_results=top_k,
+        )
+        # chroma types these as Optional; empty query results come back as [[]].
+        docs = (res["documents"] or [[]])[0]
+        metas = (res["metadatas"] or [[]])[0]
+        # chroma types metadata values as a broad union; we stored str + int.
         return [
-            Chunk(text=doc, source=meta["source"], chunk_index=int(meta["chunk_index"]))
+            Chunk(
+                text=doc,
+                source=str(meta["source"]),
+                chunk_index=int(str(meta["chunk_index"])),
+            )
             for doc, meta in zip(docs, metas)
         ]
 

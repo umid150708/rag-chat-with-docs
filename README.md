@@ -30,13 +30,22 @@ This build focuses on the two things that separate a real RAG system from a demo
 
 ## How it works
 
-```
- INGEST (once)                         ASK (per question)
- PDF/.md/.txt                          question
-   -> chunk (overlap)                    -> embed (RETRIEVAL_QUERY)
-   -> embed (RETRIEVAL_DOCUMENT)         -> similarity search (Chroma, top-k)
-   -> Chroma (persistent) <---- same ----   -> grounded prompt + cite
-                                            -> Gemini -> answer + citations
+<!-- Source: docs/architecture.mmd -->
+```mermaid
+graph LR
+    subgraph INGEST["INGEST (once)"]
+        D[Documents<br/>PDF / MD / TXT] --> C[Chunk<br/>~1000 chars, overlap]
+        C --> ED[Embed<br/>Gemini RETRIEVAL_DOCUMENT]
+    end
+    subgraph ASK["ASK (per question)"]
+        Q[Question] --> EQ[Embed<br/>Gemini RETRIEVAL_QUERY]
+        EQ --> S[Similarity search<br/>top-k]
+        S --> P[Grounded prompt<br/>+ retrieved chunks]
+        P --> G[Gemini generation]
+        G --> A[Answer<br/>+ citations]
+    end
+    ED --> V[(Chroma<br/>vector store)]
+    V --> S
 ```
 
 | File | Role |

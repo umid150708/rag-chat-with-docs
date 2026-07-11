@@ -29,7 +29,9 @@ def _embed(texts: list[str], task_type: str) -> list[list[float]]:
         contents=texts,
         config=types.EmbedContentConfig(task_type=task_type),
     )
-    return [e.values for e in result.embeddings]
+    if not result.embeddings:
+        raise RuntimeError("Embedding API returned no vectors.")
+    return [list(e.values or []) for e in result.embeddings]
 
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
