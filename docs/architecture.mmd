@@ -1,0 +1,14 @@
+graph LR
+    subgraph INGEST["INGEST (once)"]
+        D[Documents<br/>PDF / MD / TXT] --> C[Chunk<br/>~1000 chars, overlap]
+        C --> ED[Embed<br/>Gemini RETRIEVAL_DOCUMENT]
+    end
+    subgraph ASK["ASK (per question)"]
+        Q[Question] --> EQ[Embed<br/>Gemini RETRIEVAL_QUERY]
+        EQ --> S[Similarity search<br/>top-k]
+        S --> P[Grounded prompt<br/>+ retrieved chunks]
+        P --> G[Gemini generation]
+        G --> A[Answer<br/>+ citations]
+    end
+    ED --> V[(Chroma<br/>vector store)]
+    V --> S

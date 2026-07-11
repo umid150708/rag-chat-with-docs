@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 — 2026-07-11
+
+Quality tooling pass.
+
+- Add mypy (type checking) and vulture (dead-code) to the dev toolchain and
+  `CLAUDE.md` health stack.
+- Fix two None-safety gaps mypy surfaced: embeddings API returning no vectors,
+  and empty Chroma query results being indexed unguarded.
+- Add a Mermaid architecture diagram to the README (`docs/architecture.mmd`).
+
 ## 0.1.0 — 2026-07-11
 
 First working version.
