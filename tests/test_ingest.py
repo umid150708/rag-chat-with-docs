@@ -1,7 +1,15 @@
 """Chunking + model tests — no API key needed."""
 
-from ragchat.ingest import chunk_text
+from ragchat.ingest import chunk_text, discover_files
 from ragchat.models import Answer, Citation
+
+
+def test_discover_files_skips_nonexistent_paths(tmp_path):
+    # a nonexistent .pdf must NOT be returned (previously it was, then crashed on open)
+    assert discover_files([str(tmp_path / "nope.pdf")]) == []
+    real = tmp_path / "doc.md"
+    real.write_text("hello")
+    assert discover_files([str(real)]) == [real]
 
 
 def test_short_text_is_one_chunk():

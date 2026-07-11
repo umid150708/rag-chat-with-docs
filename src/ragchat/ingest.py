@@ -68,7 +68,7 @@ def discover_files(paths: list[str]) -> list[Path]:
             found.extend(
                 f for f in sorted(p.rglob("*")) if f.suffix.lower() in SUPPORTED
             )
-        elif p.suffix.lower() in SUPPORTED:
+        elif p.is_file() and p.suffix.lower() in SUPPORTED:  # is_file() => must exist
             found.append(p)
     return found
 
