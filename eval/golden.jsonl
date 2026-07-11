@@ -1,0 +1,6 @@
+{"question": "How many days do I have to return an unopened bag?", "must_contain": ["30 days"]}
+{"question": "Do you ship internationally?", "must_contain": ["internationally"]}
+{"question": "How many loyalty points do I need for a free bag?", "must_contain": ["100 points"]}
+{"question": "Which origin beans have blueberry notes?", "must_contain": ["Ethiopia"]}
+{"question": "Can I freeze opened bags of beans?", "must_contain": ["freeze"]}
+{"question": "What is the CEO's home address?", "must_contain": [], "expect_unknown": true}

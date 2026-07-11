@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.pytest_cache/
+dist/
+*.egg-info/
+# Chroma persistent store (regenerate with `rag ingest`)
+.ragstore/
