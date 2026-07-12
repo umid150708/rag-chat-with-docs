@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.2 — 2026-07-12
+
+Streaming answers + visible rate-limit backoff.
+
+- The chat UI now streams the answer token-by-token (`RagIndex.query_stream()`,
+  `_gemini.generate_stream()`) instead of blocking on the full response —
+  first content appears in ~2s instead of waiting for the whole answer.
+- 429 backoff is no longer silent: `generate()`/`generate_stream()` take an
+  `on_retry(delay, attempt)` callback, and the UI shows a live countdown
+  ("retrying in Ns…") instead of a spinner that looks hung for up to ~4 minutes.
+- `_cited()` renamed to the public `cite_answer()` for reuse from `app.py`.
+- +4 tests covering retry-callback invocation and stream-before-first-chunk
+  backoff, with a fake client (no network). 17 tests total.
+
 ## 0.2.1 — 2026-07-12
 
 Keyless demo server.

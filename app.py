@@ -23,7 +23,7 @@ from google import genai
 from google.genai.errors import APIError
 
 from ragchat.models import Chunk
-from ragchat.rag import RagIndex
+from ragchat.rag import RagIndex, cite_answer
 from ragchat.store import VectorStore
 
 CORPUS_DIR = "examples"
@@ -100,8 +100,10 @@ with st.sidebar:
         help="Your key is used only for your own questions and never stored.",
     ).strip()
     st.caption(
-        "Questions run on **your own free key** so the demo never rate-limits. "
-        "Grab one in ~30 seconds at [aistudio.google.com/apikey]"
+        "Questions run on **your own free key**, so the demo itself never "
+        "rate-limits you — though Gemini's free tier still caps *your* key at "
+        "a few requests/minute (we'll show a countdown if you hit it). "
+        "Grab a key in ~30 seconds at [aistudio.google.com/apikey]"
         "(https://aistudio.google.com/apikey) — no card required."
     )
 
@@ -126,6 +128,22 @@ for msg in st.session_state.messages:
 
 question = st.chat_input("Ask about refunds, shipping, roasts…")
 
+
+def _sources_block(citations) -> str:
+    if not citations:
+        return ""
+    return "\n\n**Sources**\n" + "\n".join(
+        f"- `{c.source}` (chunk {c.chunk_index}): *{c.snippet}…*" for c in citations
+    )
+
+
+def _retry_message(delay: float, attempt: int) -> str:
+    return (
+        f"⏳ Hit the Gemini free-tier rate limit — retrying in {delay:.0f}s "
+        f"(attempt {attempt}/6)…"
+    )
+
+
 if question:
     st.chat_message("user").markdown(question)
     st.session_state.messages.append({"role": "user", "content": question})
@@ -135,33 +153,42 @@ if question:
             "Almost there — paste a **free Gemini API key** in the sidebar to ask. "
             "Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)."
         )
+        with st.chat_message("assistant"):
+            st.markdown(answer_md)
     else:
         idx = RagIndex(store=store, client=genai.Client(api_key=visitor_key))
-        try:
-            with st.spinner("Retrieving and answering…"):
-                answer = idx.query(question)
-            answer_md = answer.text
-            if answer.citations:
-                answer_md += "\n\n**Sources**\n" + "\n".join(
-                    f"- `{c.source}` (chunk {c.chunk_index}): *{c.snippet}…*"
-                    for c in answer.citations
+        with st.chat_message("assistant"):
+            status = st.empty()
+            try:
+                text_chunks, retrieved = idx.query_stream(
+                    question,
+                    on_retry=lambda d, a: status.info(_retry_message(d, a)),
                 )
-        except APIError as err:
-            if err.code == 429:
-                answer_md = (
-                    "Your key hit a Gemini free-tier limit — either a few "
-                    "requests/minute (wait a minute and retry) or the daily cap "
-                    "(resets at midnight Pacific)."
-                )
-            elif err.code in (400, 401, 403):
-                answer_md = (
-                    "That key was rejected by Gemini — double-check it, or mint "
-                    "a fresh free one at "
-                    "[aistudio.google.com/apikey](https://aistudio.google.com/apikey)."
-                )
-            else:
-                answer_md = f"Gemini returned an unexpected error ({err.code}). Please try again."
+                answer_text = st.write_stream(text_chunks)
+                status.empty()
+                sources = _sources_block(cite_answer(answer_text, retrieved))
+                if sources:
+                    st.markdown(sources)
+                answer_md = answer_text + sources
+            except APIError as err:
+                status.empty()
+                if err.code == 429:
+                    answer_md = (
+                        "Your key hit a Gemini free-tier limit — either a few "
+                        "requests/minute (wait a minute and retry) or the daily cap "
+                        "(resets at midnight Pacific)."
+                    )
+                elif err.code in (400, 401, 403):
+                    answer_md = (
+                        "That key was rejected by Gemini — double-check it, or mint "
+                        "a fresh free one at "
+                        "[aistudio.google.com/apikey](https://aistudio.google.com/apikey)."
+                    )
+                else:
+                    answer_md = (
+                        f"Gemini returned an unexpected error ({err.code}). "
+                        "Please try again."
+                    )
+                st.markdown(answer_md)
 
-    with st.chat_message("assistant"):
-        st.markdown(answer_md)
     st.session_state.messages.append({"role": "assistant", "content": answer_md})
