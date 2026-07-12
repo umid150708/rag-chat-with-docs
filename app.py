@@ -48,7 +48,18 @@ def build_store() -> VectorStore:
         )
         st.stop()
     store = VectorStore()  # ephemeral path is fine — cached in-process
-    RagIndex(store=store, client=genai.Client(api_key=host_key)).ingest([CORPUS_DIR])
+    try:
+        RagIndex(store=store, client=genai.Client(api_key=host_key)).ingest(
+            [CORPUS_DIR]
+        )
+    except APIError as err:
+        st.error(
+            f"Couldn't index the sample docs (Gemini error {err.code}). Reload to retry."
+        )
+        st.stop()
+    if store.count() == 0:
+        st.error(f"No documents found under `{CORPUS_DIR}/` — nothing to chat with.")
+        st.stop()
     return store
 
 
@@ -70,7 +81,7 @@ with st.sidebar:
         "Your Gemini API key",
         type="password",
         help="Your key is used only for your own questions and never stored.",
-    )
+    ).strip()
     st.caption(
         "Questions run on **your own free key** so the demo never rate-limits. "
         "Grab one in ~30 seconds at [aistudio.google.com/apikey]"
