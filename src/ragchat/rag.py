@@ -38,7 +38,8 @@ class RagIndex:
         self._store = store or VectorStore()
         self._client = client  # lazily created so tests can inject one
 
-    def _gen_client(self) -> genai.Client:
+    def _get_client(self) -> genai.Client:
+        """The one client used for both embedding and generation."""
         if self._client is None:
             self._client = genai.Client(api_key=require_api_key())
         return self._client
@@ -52,7 +53,7 @@ class RagIndex:
             chunks = chunks_for_file(path)
             if not chunks:
                 continue
-            embeddings = embed_documents([c.text for c in chunks])
+            embeddings = embed_documents([c.text for c in chunks], self._get_client())
             self._store.add(chunks, embeddings)
             total += len(chunks)
         return total
@@ -63,7 +64,7 @@ class RagIndex:
 
     # ---- query --------------------------------------------------------------
     def retrieve(self, question: str, top_k: int = TOP_K) -> list[Chunk]:
-        return self._store.query(embed_query(question), top_k=top_k)
+        return self._store.query(embed_query(question, self._get_client()), top_k=top_k)
 
     def query(self, question: str, top_k: int = TOP_K) -> Answer:
         retrieved = self.retrieve(question, top_k=top_k)
@@ -78,7 +79,7 @@ class RagIndex:
         prompt = f"Context passages:\n\n{context}\n\nQuestion: {question}"
 
         response = _gemini.generate(
-            self._gen_client(),
+            self._get_client(),
             model=GEN_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(

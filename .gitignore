@@ -9,3 +9,5 @@ dist/
 *.egg-info/
 # Chroma persistent store (regenerate with `rag ingest`)
 .ragstore/
+# Streamlit secrets (host API key) — never commit
+.streamlit/secrets.toml

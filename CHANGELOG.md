@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0 — 2026-07-12
+
+Streamlit chat UI + live deployment.
+
+- `app.py`: public Streamlit chat over the bundled sample corpus, with chat
+  history, citations, and friendly rate-limit/invalid-key messages.
+- Bring-your-own-key design: the host key (Streamlit secrets) indexes the
+  corpus once per container; each visitor's own free Gemini key pays for their
+  questions, so the public link never exhausts our quota.
+- `embed.py` refactor: `embed_documents` / `embed_query` now take an explicit
+  `genai.Client` (module-global client removed) — embedding is injectable, the
+  enabler for the two-key design. CLI behaviour unchanged.
+- `requirements.txt` exported from `uv.lock` for Streamlit Community Cloud.
+- New key-free unit tests for the injectable embedding client.
+
 ## 0.1.1 — 2026-07-11
 
 Quality tooling pass.
