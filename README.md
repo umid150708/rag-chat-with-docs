@@ -4,6 +4,11 @@ Ask questions about your own documents and get answers **with citations** — an
 real **evaluation harness** that measures whether the answers are any good. Built
 on Google Gemini (free tier) for both embeddings and generation.
 
+**🔗 Live demo:** <!-- LIVE_DEMO_URL --> *(deploying — link lands with this PR)* —
+a Streamlit chat over the bundled sample docs. Bring your own free Gemini key
+([get one here](https://aistudio.google.com/apikey)); the demo runs your
+questions on your key so it never rate-limits.
+
 ```
   rag ingest examples/
   rag ask "Do you ship internationally?"
@@ -67,6 +72,8 @@ export GEMINI_API_KEY=...          # or put it in a .env file
 uv run rag ingest examples/         # index the sample docs
 uv run rag ask "How many days to return an unopened bag?"
 uv run python -m ragchat.eval       # score the system on the golden set
+
+uv run streamlit run app.py         # the chat UI, locally
 ```
 
 Use it as a library in ~5 lines:
@@ -110,7 +117,6 @@ uv run pytest
 
 - Gemini free tier is rate-limited (a few generations/minute); `_gemini.py` backs
   off and retries on 429 so the eval completes instead of crashing.
-- **Next milestone:** a Streamlit chat UI + deployment for a live demo link.
 - Future: reranking, hybrid (keyword + vector) search, OCR for scanned PDFs.
 
 ---

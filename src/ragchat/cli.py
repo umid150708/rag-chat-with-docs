@@ -28,7 +28,9 @@ def main() -> None:
             if not p.exists():
                 print(f"Warning: path not found, skipping: {raw}", file=sys.stderr)
             elif p.is_file() and p.suffix.lower() not in SUPPORTED:
-                print(f"Warning: unsupported file type, skipping: {raw}", file=sys.stderr)
+                print(
+                    f"Warning: unsupported file type, skipping: {raw}", file=sys.stderr
+                )
         if not discover_files(rest):
             print(
                 f"No supported files found ({', '.join(sorted(SUPPORTED))}). Nothing indexed.",
