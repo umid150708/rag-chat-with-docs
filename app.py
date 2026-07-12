@@ -1,17 +1,20 @@
 """Streamlit chat UI for ragchat — the live-demo entry point.
 
-Two keys, two roles:
-- The HOST key (Streamlit secrets, or env locally) embeds the bundled sample
-  corpus exactly once per container. Bounded, negligible quota use.
-- The VISITOR key (pasted in the sidebar) pays for their own question
-  embeddings + generation, so the public link scales without burning our quota.
+The server needs NO API key of its own: the bundled corpus ships with
+precomputed embeddings (data/corpus_embeddings.json, regenerate with
+scripts/build_corpus_snapshot.py), loaded straight into the vector store at
+boot. The VISITOR's key (pasted in the sidebar) pays for their own question
+embedding + generation, so the public link scales without any host quota.
 
-This works because VectorStore is client-agnostic: index with one client,
-query the same cached store with another.
+This works because VectorStore is client-agnostic: vectors go in from a file,
+queries come from a RagIndex bound to the visitor's client. If the snapshot is
+missing (e.g. local dev with a changed corpus), we fall back to live-embedding
+with a host key from Streamlit secrets or the environment.
 """
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -19,10 +22,12 @@ import streamlit as st
 from google import genai
 from google.genai.errors import APIError
 
+from ragchat.models import Chunk
 from ragchat.rag import RagIndex
 from ragchat.store import VectorStore
 
 CORPUS_DIR = "examples"
+SNAPSHOT_PATH = Path("data/corpus_embeddings.json")
 
 st.set_page_config(page_title="Chat with the Nimbus Coffee docs", page_icon="📚")
 
@@ -37,26 +42,38 @@ def _host_api_key() -> str | None:
     return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 
-@st.cache_resource(show_spinner="Indexing the sample docs (one-time per server)…")
+@st.cache_resource(show_spinner="Loading the sample docs (one-time per server)…")
 def build_store() -> VectorStore:
-    """Embed the bundled corpus once per container, on the host key."""
-    host_key = _host_api_key()
-    if not host_key:
-        st.error(
-            "Server misconfigured: no host GEMINI_API_KEY in Streamlit secrets "
-            "or environment, so the sample corpus can't be indexed."
-        )
-        st.stop()
+    """Load the precomputed corpus snapshot; fall back to live embedding."""
     store = VectorStore()  # ephemeral path is fine — cached in-process
-    try:
-        RagIndex(store=store, client=genai.Client(api_key=host_key)).ingest(
-            [CORPUS_DIR]
+    if SNAPSHOT_PATH.exists():
+        records = json.loads(SNAPSHOT_PATH.read_text())["records"]
+        store.add(
+            [
+                Chunk(text=r["text"], source=r["source"], chunk_index=r["chunk_index"])
+                for r in records
+            ],
+            [r["embedding"] for r in records],
         )
-    except APIError as err:
-        st.error(
-            f"Couldn't index the sample docs (Gemini error {err.code}). Reload to retry."
-        )
-        st.stop()
+    else:
+        # Snapshot missing (local dev with a changed corpus): embed live.
+        host_key = _host_api_key()
+        if not host_key:
+            st.error(
+                "No corpus snapshot (data/corpus_embeddings.json) and no "
+                "GEMINI_API_KEY in Streamlit secrets or environment — run "
+                "scripts/build_corpus_snapshot.py or set a key."
+            )
+            st.stop()
+        try:
+            RagIndex(store=store, client=genai.Client(api_key=host_key)).ingest(
+                [CORPUS_DIR]
+            )
+        except APIError as err:
+            st.error(
+                f"Couldn't index the sample docs (Gemini error {err.code}). Reload to retry."
+            )
+            st.stop()
     if store.count() == 0:
         st.error(f"No documents found under `{CORPUS_DIR}/` — nothing to chat with.")
         st.stop()

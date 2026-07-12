@@ -4,7 +4,7 @@ Ask questions about your own documents and get answers **with citations** — an
 real **evaluation harness** that measures whether the answers are any good. Built
 on Google Gemini (free tier) for both embeddings and generation.
 
-**🔗 Live demo:** <!-- LIVE_DEMO_URL --> *(deploying — link lands with this PR)* —
+**🔗 Live demo:** [rag-chat-with-docs on Streamlit Cloud](https://rag-chat-with-docs-glhwnaa6oappyprnytymfnb.streamlit.app) —
 a Streamlit chat over the bundled sample docs. Bring your own free Gemini key
 ([get one here](https://aistudio.google.com/apikey)); the demo runs your
 questions on your key so it never rate-limits.

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1 — 2026-07-12
+
+Keyless demo server.
+
+- The bundled corpus now ships with **precomputed embeddings**
+  (`data/corpus_embeddings.json`, ~85 KB, regenerated via
+  `scripts/build_corpus_snapshot.py`), loaded at boot — the deployed app needs
+  **no host API key or Streamlit secret at all**. Live-embedding remains as a
+  fallback when the snapshot is missing (local dev with a changed corpus).
+- Snapshot integrity tests (parses, consistent dimensions, covers every
+  corpus file) so the committed vectors can't silently rot.
+- README: real live-demo URL.
+
 ## 0.2.0 — 2026-07-12
 
 Streamlit chat UI + live deployment.

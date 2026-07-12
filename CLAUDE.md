@@ -20,5 +20,8 @@ See [SPEC.md](SPEC.md) for the design and [README.md](README.md) for usage.
   Streamlit Community Cloud from `requirements.txt` (regenerate it with
   `uv export --no-dev --no-hashes --no-annotate -o requirements.txt`
   whenever deps change).
+- The demo server is keyless: it boots from `data/corpus_embeddings.json`.
+  After editing `examples/`, regenerate the snapshot with
+  `uv run python scripts/build_corpus_snapshot.py` (needs a key in env).
 - Never commit `.env`, `.ragstore/`, or `.streamlit/secrets.toml` (all gitignored).
 - API generation calls go through `_gemini.generate` for 429 backoff.
