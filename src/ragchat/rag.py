@@ -8,11 +8,13 @@ print(idx.query("What is the refund window?").format())
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
 from google import genai
 from google.genai import types
 
 from . import _gemini
+from ._gemini import OnRetry
 from .config import GEN_MODEL, TOP_K, require_api_key
 from .embed import embed_documents, embed_query
 from .ingest import chunks_for_file, discover_files
@@ -66,32 +68,73 @@ class RagIndex:
     def retrieve(self, question: str, top_k: int = TOP_K) -> list[Chunk]:
         return self._store.query(embed_query(question, self._get_client()), top_k=top_k)
 
-    def query(self, question: str, top_k: int = TOP_K) -> Answer:
+    def query(
+        self, question: str, top_k: int = TOP_K, on_retry: OnRetry | None = None
+    ) -> Answer:
         retrieved = self.retrieve(question, top_k=top_k)
         if not retrieved:
             return Answer(
                 text="I don't know based on the provided documents.", citations=[]
             )
 
-        context = "\n\n".join(
-            f"[{i}] (source: {c.source})\n{c.text}" for i, c in enumerate(retrieved, 1)
-        )
-        prompt = f"Context passages:\n\n{context}\n\nQuestion: {question}"
-
         response = _gemini.generate(
             self._get_client(),
             model=GEN_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM,
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
-            ),
+            contents=_prompt(question, retrieved),
+            config=_gen_config(),
+            on_retry=on_retry,
         )
         text = (response.text or "").strip()
-        return Answer(text=text, citations=_cited(text, retrieved))
+        return Answer(text=text, citations=cite_answer(text, retrieved))
+
+    def query_stream(
+        self, question: str, top_k: int = TOP_K, on_retry: OnRetry | None = None
+    ) -> tuple[Iterator[str], list[Chunk]]:
+        """Like query(), but yields the answer text incrementally.
+
+        Returns (text_chunks, retrieved): iterate text_chunks for the answer
+        as it streams in, then pass the joined text + retrieved to
+        cite_answer() to build the Sources list once streaming finishes.
+        """
+        retrieved = self.retrieve(question, top_k=top_k)
+        if not retrieved:
+
+            def _decline() -> Iterator[str]:
+                yield "I don't know based on the provided documents."
+
+            return _decline(), []
+
+        response_stream = _gemini.generate_stream(
+            self._get_client(),
+            model=GEN_MODEL,
+            contents=_prompt(question, retrieved),
+            config=_gen_config(),
+            on_retry=on_retry,
+        )
+
+        def _text_chunks() -> Iterator[str]:
+            for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+
+        return _text_chunks(), retrieved
 
 
-def _cited(answer_text: str, retrieved: list[Chunk]) -> list[Citation]:
+def _prompt(question: str, retrieved: list[Chunk]) -> str:
+    context = "\n\n".join(
+        f"[{i}] (source: {c.source})\n{c.text}" for i, c in enumerate(retrieved, 1)
+    )
+    return f"Context passages:\n\n{context}\n\nQuestion: {question}"
+
+
+def _gen_config() -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        system_instruction=SYSTEM,
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
+    )
+
+
+def cite_answer(answer_text: str, retrieved: list[Chunk]) -> list[Citation]:
     """Keep only the passages the answer actually referenced via [n] markers."""
     used = {int(n) for n in re.findall(r"\[(\d+)\]", answer_text)}
     citations = []
