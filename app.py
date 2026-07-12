@@ -121,8 +121,9 @@ if question:
         except APIError as err:
             if err.code == 429:
                 answer_md = (
-                    "Your key just hit Gemini's free-tier rate limit "
-                    "(a few requests/minute). Wait ~30 seconds and ask again."
+                    "Your key hit a Gemini free-tier limit — either a few "
+                    "requests/minute (wait a minute and retry) or the daily cap "
+                    "(resets at midnight Pacific)."
                 )
             elif err.code in (400, 401, 403):
                 answer_md = (
